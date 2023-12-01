@@ -2,7 +2,30 @@ import os
 import click
 from shutil import move
 from collections import defaultdict
+import logging
+from enum import Enum
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filename='file_organizer.log',
+    filemode='a'
+)
+
+class MessageType(Enum):
+    DEFAULT = "default"
+    ECHO_INFO = "echo_info"
+    ECHO_ERROR = "echo_error"
+
+def _log_and_print(message, level=logging.INFO, message_type=MessageType.DEFAULT):
+    logging.log(level, message)
+    
+    if message_type == MessageType.DEFAULT:
+        click.echo(message)
+    elif message_type == MessageType.ECHO_INFO:
+        click.echo(click.style(message, fg='green', bold=True))
+    elif message_type == MessageType.ECHO_ERROR:
+        click.echo(click.style(message, fg='red', bold=True))
 
 @click.command()
 @click.argument('source', type=click.Path(exists=True), required=False)
@@ -10,11 +33,10 @@ from collections import defaultdict
 @click.option('--dry-run', is_flag=True, help="Simulate file organization without actually moving files.")
 def organize_files(source, destination, dry_run=False):
 
+    _log_and_print("===== STARTING FILE ORGANIZER =====")
+
     if source is None or destination is None:
-        click.echo(
-            click.style("Please provide source and destination directories as command-line arguments.",
-                   fg='red', bold=True)
-            )
+        _log_and_print("Please provide source and destination directories as command-line arguments.", message_type=MessageType.ECHO_ERROR)
         return
 
     file_dict = _get_file_paths(source)
@@ -41,16 +63,18 @@ def organize_files(source, destination, dry_run=False):
                 elif confirmation in {'no', 'n'}:
                     break
                 else:
-                    print(f"Invalid input. Please enter 'yes' or 'no'.")
+                    _log_and_print(f"Invalid input. Please enter 'yes' or 'no'.")
         else:
             _process_files(to_move_list)
+    
+    _log_and_print("===== EXITING PROGRAM =====")
 
             
 
 def _print_dry_run_results(to_move_list):
     for i in range(len(to_move_list)):
         destination_folder, filename = to_move_list[i][-1], to_move_list[i][-2]
-        print(f"{filename} will be moved to {destination_folder}")
+        _log_and_print(f"{filename} will be moved to {destination_folder}", message_type=MessageType.ECHO_INFO)
 
 def _process_files(to_move_list):
     # Check and create the destination folder if it doesn't exist
@@ -63,9 +87,9 @@ def _process_files(to_move_list):
         original_path, new_path, filename, destination_folder = to_move_list[i]
         try:
             move(original_path, new_path)
-            print(f"Moved: {filename} to {destination_folder}")
+            _log_and_print(f"Moved: {filename} to {destination_folder}")
         except Exception as e:
-            print(f"Error moving {filename}: {e}")
+            _log_and_print(f"Error moving {filename}: {e}")
 
 def _get_file_paths(source):
     paths = defaultdict(list)
