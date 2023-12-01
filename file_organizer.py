@@ -17,45 +17,55 @@ def organize_files(source, destination, dry_run=False):
             )
         return
 
-    dict = _get_file_paths(source)
+    file_dict = _get_file_paths(source)
 
-    for file_type in dict:
+    for file_type in file_dict:
             
-        for filename in dict[file_type]:
+        to_move_list = []
+        for filename in file_dict[file_type]:
             destination_folder = os.path.join(destination, file_type)
-            if not os.path.exists(destination_folder):
-                os.makedirs(destination_folder)
-            
+
             original_path = os.path.join(source, filename)
             new_path = os.path.join(destination_folder, filename)
 
-            if dry_run:
-                _dry_run(destination_folder, filename)
-                
-                is_confirm = False
-                while is_confirm is False: 
-                    confirmation = input("Do you want to proceed? (yes/no): ").lower()
-                    if confirmation in {'yes', 'y'}:
-                        _move_file(original_path, new_path, filename, destination_folder)
-                        is_confirm = True
-                    elif confirmation in {'no', 'n'}:
-                        break
-                    else:
-                        print(f"Invalid input. Please enter 'yes' or 'no'.")
-            else:
-                _move_file(original_path, new_path, filename, destination_folder)
+            to_move_list.append([original_path, new_path, filename, destination_folder])
+        
+        if dry_run:
+            _print_dry_run_results(to_move_list)
+            is_confirm = False
+            while is_confirm is False: 
+                confirmation = input("Do you want to proceed? (yes/no): ").lower()
+                if confirmation in {'yes', 'y'}:
+                    _process_files(to_move_list)
+                    is_confirm = True
+                elif confirmation in {'no', 'n'}:
+                    break
+                else:
+                    print(f"Invalid input. Please enter 'yes' or 'no'.")
+        else:
+            _process_files(to_move_list)
 
             
 
-def _dry_run(destination_folder, filename):
-    print(f"{filename} will be move to {destination_folder}")
+def _print_dry_run_results(to_move_list):
+    for i in range(len(to_move_list)):
+        destination_folder, filename = to_move_list[i][-1], to_move_list[i][-2]
+        print(f"{filename} will be moved to {destination_folder}")
 
-def _move_file(original_path, new_path, filename, destination_folder):
-    try:
-        move(original_path, new_path)
-        print(f"Moved: {filename} to {destination_folder}")
-    except Exception as e:
-        print(f"Error moving {filename}: {e}")
+def _process_files(to_move_list):
+    # Check and create the destination folder if it doesn't exist
+    if to_move_list:
+        destination_folder = to_move_list[0][-1]
+        if not os.path.exists(destination_folder):
+            os.makedirs(destination_folder)
+
+    for i in range(len(to_move_list)):
+        original_path, new_path, filename, destination_folder = to_move_list[i]
+        try:
+            move(original_path, new_path)
+            print(f"Moved: {filename} to {destination_folder}")
+        except Exception as e:
+            print(f"Error moving {filename}: {e}")
 
 def _get_file_paths(source):
     paths = defaultdict(list)
